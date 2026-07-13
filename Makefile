@@ -1,0 +1,18 @@
+IMAGE := aididalam/bidly-frontend-auction
+PLATFORMS := linux/amd64,linux/arm64
+
+ifndef TAG
+$(error TAG is required. Usage: make TAG=main-1)
+endif
+
+.PHONY: all build test
+
+all: test build
+
+test:
+	npm ci
+	npm run typecheck
+	npm test
+
+build:
+	docker buildx build --platform $(PLATFORMS) --tag $(IMAGE):$(TAG) --push .
