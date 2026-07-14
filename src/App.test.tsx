@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import App from './App'
 
 const session = 'header.eyJzdWIiOiJ1c2VyLTEiLCJlbWFpbCI6ImFtaW5hQGV4YW1wbGUuY29tIn0.signature'
-const product = { id: '1', seller_id: 'seller', title: 'Walnut Lamp', description: 'Warm light', image_key: '', starting_price: 100, current_price: 125, highest_bidder_id: null, auction_end_at: new Date(Date.now() + 86400000).toISOString(), status: 'ACTIVE', created_at: new Date().toISOString() }
+const product = { id: '1', seller_id: 'seller', title: 'Walnut Lamp', description: 'Warm light', image_key: '', currency: 'USD', starting_price: 100, current_price: 125, highest_bidder_id: null, auction_end_at: new Date(Date.now() + 86400000).toISOString(), status: 'ACTIVE', created_at: new Date().toISOString() }
 
 beforeEach(() => {
   document.cookie = 'auction_token=; Max-Age=0; Path=/'
@@ -16,7 +16,7 @@ afterEach(cleanup)
 test('renders marketplace products from the API', async () => {
   render(<App />)
   expect(await screen.findByText('Walnut Lamp')).not.toBeNull()
-  expect(screen.getByText(/BDT/)).not.toBeNull()
+  expect(screen.getByText(/\$125/)).not.toBeNull()
 })
 
 test('uses the runtime S3 URL for product images', async () => {

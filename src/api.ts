@@ -4,6 +4,7 @@ export type Product = {
   title: string
   description: string
   image_key: string
+  currency: string
   starting_price: number
   current_price: number
   highest_bidder_id: string | null

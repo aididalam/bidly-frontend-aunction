@@ -396,7 +396,8 @@ header nav .active:after {
 }
 .detail input,
 .create input,
-.create textarea {
+.create textarea,
+.create select {
   width: 100%;
   border: 1px solid #d7d5cc;
   border-radius: 9px;
