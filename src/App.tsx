@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
+import Cropper, { type Area } from 'react-easy-crop'
 import { ArrowRight, ChevronDown, Clock, Gavel, KeyRound, LogIn, LogOut, Plus, Search, Tag, UserRound, X } from 'lucide-react'
 import { api, clearToken, identity, token, type Product } from './api'
 
@@ -73,7 +74,7 @@ export default function App() {
             <button role="menuitem" onClick={() => void logout()}><LogOut />Log out</button>
           </div>}
         </div>
-        <button className="sell" onClick={() => setView('create')}><Plus />Sell an item</button>
+          <button className="sell" onClick={() => setView('create')}><Plus />Sell an item</button>
       </> : <a className="login" href={authUrl}><LogIn />Sign in</a>}
     </header>
     {view === 'create' ? <Create onDone={() => setView('mine')} onClose={() => setView('market')} /> : <>
@@ -104,10 +105,29 @@ function Detail({ product, mine, onClose, onChange }: { product: Product; mine: 
 function Create({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [sourceImage, setSourceImage] = useState<string | null>(null)
+  const [croppedImage, setCroppedImage] = useState<File | null>(null)
+  const [cropOpen, setCropOpen] = useState(false)
+
+  function chooseImage(file: File | null) {
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setSourceImage(String(reader.result))
+      setCroppedImage(null)
+      setCropOpen(true)
+    }
+    reader.readAsDataURL(file)
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
-    const file = form.get('image') as File
+    const file = croppedImage
+    if (!file) {
+      setError('Crop your image to the required 16:9 format before publishing.')
+      return
+    }
     setBusy(true)
     setError('')
     try {
@@ -118,5 +138,47 @@ function Create({ onDone, onClose }: { onDone: () => void; onClose: () => void }
       onDone()
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to create listing') } finally { setBusy(false) }
   }
-  return <section className="create"><button className="close" onClick={onClose}><X /></button><small>SELL WITH BIDLY</small><h1>Give it a new story.</h1><p>Thoughtful details make confident bidders.</p><form onSubmit={submit}><label>Title<input name="title" maxLength={200} required placeholder="Vintage walnut desk lamp" /></label><label>Description<textarea name="description" required placeholder="Share its condition, history, and character." /></label><div className="row"><label>Starting price<input name="price" type="number" min="0.01" step="0.01" required /></label><label>Auction ends<input name="end" type="datetime-local" required /></label></div><label>Photograph<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required /></label>{error && <div className="notice">{error}</div>}<button className="primary" disabled={busy}>{busy ? 'Creating listing…' : 'Publish auction'}</button></form></section>
+  return <section className="create"><button className="close" onClick={onClose}><X /></button><small>SELL WITH BIDLY</small><h1>Give it a new story.</h1><p>Thoughtful details make confident bidders.</p><form onSubmit={submit}><label>Title<input name="title" maxLength={200} required placeholder="Vintage walnut desk lamp" /></label><label>Description<textarea name="description" maxLength={1000} required placeholder="Share its condition, history, and character." /><small className="field-note">Up to 1,000 characters</small></label><div className="row"><label>Starting price<input name="price" type="number" min="0.01" step="0.01" required /></label><label>Auction ends<input name="end" type="datetime-local" required /></label></div><label>Photograph<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required onChange={event => chooseImage(event.target.files?.[0] ?? null)} /><small className="field-note">A 16:9 crop is required before upload.</small></label>{croppedImage && <div className="crop-ready">16:9 crop ready <button type="button" onClick={() => setCropOpen(true)}>Adjust crop</button></div>}{error && <div className="notice">{error}</div>}<button className="primary" disabled={busy}>{busy ? 'Creating listing…' : 'Publish auction'}</button></form>{cropOpen && sourceImage && <ImageCropper source={sourceImage} onCancel={() => setCropOpen(false)} onComplete={file => { setCroppedImage(file); setCropOpen(false) }} />}</section>
+}
+
+function ImageCropper({ source, onCancel, onComplete }: { source: string; onCancel: () => void; onComplete: (file: File) => void }) {
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [area, setArea] = useState<Area | null>(null)
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const onCropComplete = useCallback((_area: Area, pixels: Area) => setArea(pixels), [])
+
+  async function apply() {
+    if (!area) return
+    setBusy(true)
+    setError('')
+    try {
+      onComplete(await cropToSixteenByNine(source, area))
+    } catch {
+      setError('Unable to crop this image. Please choose another image.')
+      setBusy(false)
+    }
+  }
+
+  return <div className="overlay crop-overlay" role="dialog" aria-modal="true" aria-label="Crop photograph"><section className="crop-dialog"><button className="close" onClick={onCancel} aria-label="Close cropper"><X /></button><small>PREPARE PHOTOGRAPH</small><h2>Crop to 16:9</h2><p>Position the image within the frame. We’ll optimize it for the marketplace.</p><div className="crop-stage"><Cropper image={source} crop={crop} zoom={zoom} aspect={16 / 9} onCropChange={setCrop} onZoomChange={setZoom} onCropComplete={onCropComplete} showGrid={false} /></div><label>Zoom<input aria-label="Crop zoom" className="zoom" type="range" min="1" max="3" step="0.05" value={zoom} onChange={event => setZoom(Number(event.target.value))} /></label>{error && <div className="notice">{error}</div>}<div className="crop-actions"><button type="button" onClick={onCancel}>Cancel</button><button type="button" className="primary" disabled={busy} onClick={() => void apply()}>{busy ? 'Preparing image…' : 'Use 16:9 crop'}</button></div></section></div>
+}
+
+async function cropToSixteenByNine(source: string, area: Area): Promise<File> {
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image()
+    element.onload = () => resolve(element)
+    element.onerror = reject
+    element.src = source
+  })
+  const canvas = document.createElement('canvas')
+  canvas.width = 1600
+  canvas.height = 900
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas is unavailable')
+  context.fillStyle = '#ffffff'
+  context.fillRect(0, 0, canvas.width, canvas.height)
+  context.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, canvas.width, canvas.height)
+  const blob = await new Promise<Blob>((resolve, reject) => canvas.toBlob(value => value ? resolve(value) : reject(new Error('Unable to encode image')), 'image/jpeg', .9))
+  return new File([blob], `auction-${Date.now()}.jpg`, { type: 'image/jpeg' })
 }
