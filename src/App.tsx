@@ -2,8 +2,14 @@ import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { ArrowRight, ChevronDown, Clock, Gavel, KeyRound, LogIn, LogOut, Plus, Search, Tag, UserRound, X } from 'lucide-react'
 import { api, clearToken, identity, token, type Product } from './api'
 
+declare global {
+  interface Window {
+    BIDLY_CONFIG?: { S3_PUBLIC_BASE_URL?: string }
+  }
+}
+
 const authUrl = import.meta.env.VITE_AUTH_APP_URL ?? 'http://localhost:5173'
-const imageBase = import.meta.env.VITE_S3_PUBLIC_BASE_URL ?? ''
+const imageBase = () => window.BIDLY_CONFIG?.S3_PUBLIC_BASE_URL ?? ''
 const money = (value: number) => new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 }).format(value)
 
 function remaining(end: string) {
@@ -22,6 +28,7 @@ export default function App() {
   const [error, setError] = useState('')
   const [me, setMe] = useState(identity)
   const [accountOpen, setAccountOpen] = useState(false)
+  const publicImageBase = imageBase()
 
   async function load() {
     setBusy(true)
@@ -73,7 +80,7 @@ export default function App() {
       <section className="hero"><span>LIVE MARKETPLACE</span><h1>{view === 'mine' ? 'Your collection,' : 'Objects with a story.'}<br /><em>{view === 'mine' ? 'beautifully managed.' : 'Yours to discover.'}</em></h1><p>{view === 'mine' ? 'Review interest, close auctions, and make room for what comes next.' : 'Considered pieces from independent sellers. Bid with confidence.'}</p></section>
       <section className="toolbar"><div><Search /><input aria-label="Search auctions" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search the collection" /></div><span>{shown.length} {shown.length === 1 ? 'piece' : 'pieces'}</span></section>
       {error && <div className="notice">{error}<button onClick={() => void load()}>Try again</button></div>}
-      {busy ? <div className="loading">Curating the collection…</div> : <section className="grid">{shown.map(product => <article key={product.id} onClick={() => setSelected(product)}><div className="image">{product.image_key && imageBase ? <img src={`${imageBase}/${product.image_key}`} alt="" /> : <Tag />}<span>{product.status}</span></div><div className="meta"><small><Clock />{remaining(product.auction_end_at)}</small><h2>{product.title}</h2><p>{product.description}</p><div><span>Current bid<strong>{money(product.current_price)}</strong></span><button aria-label={`View ${product.title}`}><ArrowRight /></button></div></div></article>)}{!shown.length && <div className="empty">No pieces found. A quieter shelf can be a lovely thing.</div>}</section>}
+      {busy ? <div className="loading">Curating the collection…</div> : <section className="grid">{shown.map(product => <article key={product.id} onClick={() => setSelected(product)}><div className="image">{product.image_key && publicImageBase ? <img src={`${publicImageBase}/${product.image_key}`} alt="" /> : <Tag />}<span>{product.status}</span></div><div className="meta"><small><Clock />{remaining(product.auction_end_at)}</small><h2>{product.title}</h2><p>{product.description}</p><div><span>Current bid<strong>{money(product.current_price)}</strong></span><button aria-label={`View ${product.title}`}><ArrowRight /></button></div></div></article>)}{!shown.length && <div className="empty">No pieces found. A quieter shelf can be a lovely thing.</div>}</section>}
     </>}
     {selected && <Detail product={selected} mine={selected.seller_id === me?.sub} onClose={() => setSelected(null)} onChange={() => { setSelected(null); void load() }} />}
   </main>

@@ -1,0 +1,1 @@
+window.BIDLY_CONFIG = {}

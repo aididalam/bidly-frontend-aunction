@@ -6,12 +6,12 @@ RUN npm ci
 COPY . .
 ARG VITE_AUTH_APP_URL=/auth/
 ARG VITE_BASE_PATH=/auction/
-ARG VITE_S3_PUBLIC_BASE_URL=http://localhost:9000/auction-images
 ENV VITE_AUTH_APP_URL=$VITE_AUTH_APP_URL
 ENV VITE_BASE_PATH=$VITE_BASE_PATH
-ENV VITE_S3_PUBLIC_BASE_URL=$VITE_S3_PUBLIC_BASE_URL
 RUN npm run build
 FROM nginx:1.27-alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
+COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 EXPOSE 80
