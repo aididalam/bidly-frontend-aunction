@@ -62,13 +62,14 @@ jobs:
         run: |
           VERSION="v${TAG#main-}"
           sed -i "s|image: $IMAGE:.*|image: $IMAGE:$TAG|" "$DEPLOYMENT_FILE"
-          sed -i "s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
+          sed -i "/^metadata:/,/^spec:/ s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
+          sed -i "/^    metadata:/,/^    spec:/ s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
           sed -i -E "0,/^([[:space:]]*- name: ).*/! s/^([[:space:]]*- name: ).*/\1$VERSION/" "$DESTINATION_RULE_FILE"
           sed -i -E "0,/^([[:space:]]*app.kubernetes.io\\/version: ).*/! s/^([[:space:]]*app.kubernetes.io\\/version: ).*/\1$VERSION/" "$DESTINATION_RULE_FILE"
           sed -i -E "0,/^([[:space:]]*subset: ).*/! s/^([[:space:]]*subset: ).*/\1$VERSION/" "$VIRTUAL_SERVICE_FILE"
           sed -i -E "/subset: $VERSION/,/weight:/ s/^([[:space:]]*weight: ).*/\1$CANARY_WEIGHT/" "$VIRTUAL_SERVICE_FILE"
           grep -q "image: $IMAGE:$TAG" "$DEPLOYMENT_FILE"
-          test "$(grep -c "app.kubernetes.io/version: $VERSION" "$DEPLOYMENT_FILE")" -eq 3
+          test "$(grep -c "app.kubernetes.io/version: $VERSION" "$DEPLOYMENT_FILE")" -eq 2
           grep -q -- "- name: $VERSION" "$DESTINATION_RULE_FILE"
           grep -q "app.kubernetes.io/version: $VERSION" "$DESTINATION_RULE_FILE"
           grep -q "subset: $VERSION" "$VIRTUAL_SERVICE_FILE"
