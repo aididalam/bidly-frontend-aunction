@@ -16,6 +16,9 @@ env:
   IMAGE: aididalam/bidly-frontend-auction
   GITOPS_REPOSITORY: aididalam/bidly-argo-cd
   DEPLOYMENT_FILE: apps/auction-frontend/deployment.yaml
+  DESTINATION_RULE_FILE: apps/auction-frontend/destination-rule.yaml
+  VIRTUAL_SERVICE_FILE: apps/auction-frontend/virtual-service.yaml
+  CANARY_WEIGHT: 0
 
 jobs:
   build-push-deploy:
@@ -60,11 +63,19 @@ jobs:
           VERSION="v${TAG#main-}"
           sed -i "s|image: $IMAGE:.*|image: $IMAGE:$TAG|" "$DEPLOYMENT_FILE"
           sed -i "s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
+          sed -i -E "0,/^([[:space:]]*- name: ).*/! s/^([[:space:]]*- name: ).*/\1$VERSION/" "$DESTINATION_RULE_FILE"
+          sed -i -E "0,/^([[:space:]]*app.kubernetes.io\\/version: ).*/! s/^([[:space:]]*app.kubernetes.io\\/version: ).*/\1$VERSION/" "$DESTINATION_RULE_FILE"
+          sed -i -E "0,/^([[:space:]]*subset: ).*/! s/^([[:space:]]*subset: ).*/\1$VERSION/" "$VIRTUAL_SERVICE_FILE"
+          sed -i -E "/subset: $VERSION/,/weight:/ s/^([[:space:]]*weight: ).*/\1$CANARY_WEIGHT/" "$VIRTUAL_SERVICE_FILE"
           grep -q "image: $IMAGE:$TAG" "$DEPLOYMENT_FILE"
           test "$(grep -c "app.kubernetes.io/version: $VERSION" "$DEPLOYMENT_FILE")" -eq 3
+          grep -q -- "- name: $VERSION" "$DESTINATION_RULE_FILE"
+          grep -q "app.kubernetes.io/version: $VERSION" "$DESTINATION_RULE_FILE"
+          grep -q "subset: $VERSION" "$VIRTUAL_SERVICE_FILE"
+          grep -q "weight: $CANARY_WEIGHT" "$VIRTUAL_SERVICE_FILE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add "$DEPLOYMENT_FILE"
+          git add "$DEPLOYMENT_FILE" "$DESTINATION_RULE_FILE" "$VIRTUAL_SERVICE_FILE"
           git diff --cached --quiet && exit 0
           git commit -m "ci: deploy auction frontend $TAG"
           for attempt in 1 2 3; do
