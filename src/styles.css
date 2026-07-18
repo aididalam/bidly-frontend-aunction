@@ -167,6 +167,15 @@ header nav .active:after {
   letter-spacing: 0.16em;
   font-weight: 600;
 }
+.release-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+}
 .hero h1,
 .create h1 {
   font: 600 clamp(46px, 6vw, 72px) / 1.04 "Playfair Display";
