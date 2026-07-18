@@ -52,14 +52,16 @@ jobs:
           token: ${{ secrets.BIDLY_GITOPS_TOKEN }}
           path: gitops
 
-      - name: Update GitOps image tag
+      - name: Update GitOps latest deployment
         working-directory: gitops
         env:
           TAG: ${{ steps.image.outputs.tag }}
         run: |
-          sed -i "s|image: $IMAGE:.*|image: $IMAGE:$TAG|" "$DEPLOYMENT_FILE"
           VERSION="v${TAG#main-}"
+          sed -i "s|image: $IMAGE:.*|image: $IMAGE:$TAG|" "$DEPLOYMENT_FILE"
           sed -i "s|app.kubernetes.io/version: .*|app.kubernetes.io/version: $VERSION|" "$DEPLOYMENT_FILE"
+          grep -q "image: $IMAGE:$TAG" "$DEPLOYMENT_FILE"
+          test "$(grep -c "app.kubernetes.io/version: $VERSION" "$DEPLOYMENT_FILE")" -eq 3
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$DEPLOYMENT_FILE"
